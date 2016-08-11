@@ -1,0 +1,31 @@
+# Number of tracks to fetch at once.
+# Max is 50.
+TRACK_BATCH_SIZE = 50
+
+# Number of track features to fetch at once.
+# Max is 100.
+FEATURE_BATCH_SIZE = 100
+
+FEATURES = [
+    "danceability",
+    # "key",
+    "loudness",
+    "mode",
+    "energy",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
+    "tempo",
+    # "duration_ms",
+    # "time_signature",
+]
+
+SPOTIFY_USERNAME = "some_cool_username"
+
+SPOTIPY_ENVIRON = {
+    "SPOTIPY_CLIENT_ID": "some_client_id",
+    "SPOTIPY_CLIENT_SECRET": "some_client_secret",
+    "SPOTIPY_REDIRECT_URI": "some_redirect_uri",
+}
