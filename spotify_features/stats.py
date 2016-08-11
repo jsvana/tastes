@@ -16,6 +16,12 @@ class FeatureStatistics(object):
         self.avg = sum(values) / len(values)
         self.std_dev = numpy.std(values)
 
+    def __str__(self):
+        return "FeatureStatistics(avg: {:.2f}, std_dev: {:.2f})".format(
+            self.avg,
+            self.std_dev,
+        )
+
 
 def get_feature_values(tracks):
     feature_values = defaultdict(list)

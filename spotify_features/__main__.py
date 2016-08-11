@@ -68,6 +68,17 @@ def parse_args():
     )
     recommend_additions_parser.set_defaults(function=cmd_recommend_additions)
 
+    find_new_parser = subparsers.add_parser(
+        "find-new",
+        help="Finds new tunes to listen to",
+    )
+    find_new_parser.add_argument(
+        "--limit",
+        default=20,
+        help="Number of new tunes to show (default: %(default)s)",
+    )
+    find_new_parser.set_defaults(function=cmd_find_new)
+
     graph_interests_parser = subparsers.add_parser(
         "graph-interests",
         help="Plots features from your library as histograms and scatterplots",
@@ -104,8 +115,14 @@ def cmd_get_favorites(args):
         distance = track.distance_from_average(average_feature_values)
         best_tracks.put((distance, track))
 
+    rows = []
     for _ in range(args.limit):
-        print(best_tracks.get()[1])
+        entry = best_tracks.get()
+        rows.append([
+            str(entry[1]),
+            entry[0],
+        ])
+    print(tabulate(rows, headers=["track", "score"], numalign="right"))
 
     return True
 
@@ -130,13 +147,21 @@ def cmd_get_playlists(args):
     )
 
 
-def cmd_recommend_additions(args):
-    sp = track_api.init_spotify(args)
-    tracks = sp.user_playlist_tracks(args.playlist_owner, args.playlist_id)
+def tracks_for_playlist(sp, playlist_owner, playlist_id):
+    tracks = sp.user_playlist_tracks(playlist_owner, playlist_id)
     playlist_tracks = {}
     for track in tracks["items"]:
         playlist_tracks[track["track"]["id"]] = track_api.Track(track["track"])
-    playlist_tracks = track_api.fill_feature_information(sp, playlist_tracks)
+    return track_api.fill_feature_information(sp, playlist_tracks)
+
+
+def cmd_recommend_additions(args):
+    sp = track_api.init_spotify(args)
+    playlist_tracks = tracks_for_playlist(
+        sp,
+        args.playlist_owner,
+        args.playlist_id,
+    )
 
     average_feature_values = stats.get_average_feature_values(playlist_tracks)
 
@@ -150,8 +175,62 @@ def cmd_recommend_additions(args):
         distance = track.distance_from_average(average_feature_values)
         best_tracks.put((distance, track))
 
+    rows = []
     for _ in range(args.limit):
-        print(best_tracks.get())
+        entry = best_tracks.get()
+        rows.append([
+            str(entry[1]),
+            entry[0],
+        ])
+    print(tabulate(rows, headers=["track", "score"], numalign="right"))
+
+    return True
+
+
+def get_tracks_for_category(sp, category):
+    tracks = {}
+    try:
+        playlists = sp.category_playlists(category["id"])["playlists"]["items"]
+    except:
+        return tracks
+    for playlist in playlists:
+        tracks.update(
+            tracks_for_playlist(sp, playlist["owner"]["id"], playlist["id"])
+        )
+    return tracks
+
+
+def cmd_find_new(args):
+    sp = track_api.init_spotify(args)
+
+    if args.local_file:
+        library_tracks = track_api.get_tracks_from_file(args.local_file)
+    else:
+        library_tracks = track_api.get_tracks_from_spotify(args)
+
+    average_feature_values = stats.get_average_feature_values(library_tracks)
+
+    categories = sp.categories(country="us")["categories"]["items"]
+    for category in categories:
+        print()
+        print("Category: {}".format(category["name"]))
+        tracks = get_tracks_for_category(sp, category)
+
+        best_tracks = PriorityQueue()
+        for track in tracks.values():
+            distance = track.distance_from_average(average_feature_values)
+            best_tracks.put((distance, track))
+
+        rows = []
+        for _ in range(args.limit):
+            entry = best_tracks.get()
+            rows.append([
+                str(entry[1]),
+                entry[0],
+            ])
+        print(tabulate(rows, headers=["track", "score"], numalign="right"))
+
+    return True
 
 
 def main():

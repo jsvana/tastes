@@ -42,10 +42,13 @@ class Track(object):
         distance = 0
         for feature, stats in stats_map.items():
             track_val = getattr(self.features, feature)
-            if track_val is None or stats.std_dev == 0:
+            if track_val is None:
                 track_val = float("inf")
             distance += abs(track_val - stats.avg) / stats.std_dev
         return distance
+
+    def __lt__(self, other):
+        return True
 
     def __str__(self):
         return "{} by {}".format(
@@ -135,12 +138,14 @@ def fill_feature_information(sp, tracks):
             last_batch = True
         keys = keys_to_fetch[:count]
         keys_to_fetch = keys_to_fetch[count:]
-        batch_features = sp.audio_features(keys)
-        for features in batch_features:
-            if features is None:
-                print("Error getting features for id")
-                continue
-            tracks[features["id"]].features = TrackFeatures(features)
+        try:
+            batch_features = sp.audio_features(keys)
+            for features in batch_features:
+                if features is None:
+                    continue
+                tracks[features["id"]].features = TrackFeatures(features)
+        except:
+            pass
 
     return tracks
 
