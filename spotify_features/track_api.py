@@ -11,6 +11,7 @@ from . import config
 
 SCOPES = [
     "user-library-read",
+    "user-top-read",
 ]
 
 
@@ -41,7 +42,7 @@ class Track(object):
         distance = 0
         for feature, stats in stats_map.items():
             track_val = getattr(self.features, feature)
-            if track_val is None:
+            if track_val is None or stats.std_dev == 0:
                 track_val = float("inf")
             distance += abs(track_val - stats.avg) / stats.std_dev
         return distance
@@ -54,6 +55,26 @@ class Track(object):
 
 
 class Artist(object):
+
+    def __init__(self, json):
+        for k, v in json.items():
+            setattr(self, k, v)
+
+    def __str__(self):
+        return self.name
+
+
+class Playlist(object):
+
+    def __init__(self, json):
+        for k, v in json.items():
+            if k == "owner":
+                setattr(self, k, Owner(v))
+            else:
+                setattr(self, k, v)
+
+
+class Owner(object):
 
     def __init__(self, json):
         for k, v in json.items():
@@ -77,7 +98,7 @@ def init_spotify(args):
     for key, value in config.SPOTIPY_ENVIRON.items():
         os.environ[key] = value
 
-    token = util.prompt_for_user_token(username, ",".join(SCOPES))
+    token = util.prompt_for_user_token(username, " ".join(SCOPES))
 
     if not token:
         print("Unable to get Spotify token")
@@ -101,6 +122,10 @@ def get_tracks_from_spotify(args):
         for track in batch_tracks:
             tracks[track["track"]["id"]] = Track(track["track"])
 
+    return fill_feature_information(sp, tracks)
+
+
+def fill_feature_information(sp, tracks):
     last_batch = False
     keys_to_fetch = list(tracks.keys())
     while not last_batch:
